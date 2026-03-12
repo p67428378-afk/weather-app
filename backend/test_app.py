@@ -1,6 +1,30 @@
 import pytest
 from unittest.mock import patch
 from backend.app import app
+import json
+
+# Helper class for mocking requests.Response objects
+class MockResponse:
+    def __init__(self, status_code, json_data=None, text_data=None, raise_for_status=False):
+        self.status_code = status_code
+        self._json_data = json_data
+        self._text_data = text_data
+        self._raise_for_status = raise_for_status
+
+    def json(self):
+        if self._json_data is not None:
+            return self._json_data
+        raise ValueError("No JSON data provided for mock response")
+
+    @property
+    def text(self):
+        if self._text_data is not None:
+            return self._text_data
+        return json.dumps(self._json_data) if self._json_data is not None else ""
+
+    def raise_for_status(self):
+        if self._raise_for_status and self.status_code >= 400:
+            raise requests.exceptions.HTTPError(response=self)
 
 @pytest.fixture
 def client():
@@ -12,7 +36,7 @@ def test_get_weather_success(client):
     with patch('requests.get') as mock_get:
         # Mock geocoding API response
         mock_get.side_effect = [
-            pytest.mock_response(status_code=200, json_data={
+            MockResponse(status_code=200, json_data={
                 "results": [{
                     "latitude": 51.5074,
                     "longitude": 0.1278,
@@ -20,7 +44,7 @@ def test_get_weather_success(client):
                 }]
             }),
             # Mock weather API response
-            pytest.mock_response(status_code=200, json_data={
+            MockResponse(status_code=200, json_data={
                 "current_weather": {
                     "temperature": 10.5,
                     "windspeed": 15.3,
@@ -46,7 +70,7 @@ def test_get_weather_empty_city(client):
 def test_get_weather_city_not_found(client):
     with patch('requests.get') as mock_get:
         # Mock geocoding API response with no results
-        mock_get.return_value = pytest.mock_response(status_code=200, json_data={
+        mock_get.return_value = MockResponse(status_code=200, json_data={
             "results": []
         })
         response = client.get('/api/weather?city=NonExistentCity')
@@ -58,7 +82,7 @@ def test_get_weather_api_error(client):
     with patch('requests.get') as mock_get:
         # Mock geocoding API success
         mock_get.side_effect = [
-            pytest.mock_response(status_code=200, json_data={
+            MockResponse(status_code=200, json_data={
                 "results": [{
                     "latitude": 51.5074,
                     "longitude": 0.1278,
@@ -66,7 +90,7 @@ def test_get_weather_api_error(client):
                 }]
             }),
             # Mock weather API failure
-            pytest.mock_response(status_code=500, text_data="Internal Server Error", raise_for_status=True)
+            MockResponse(status_code=500, text_data="Internal Server Error", raise_for_status=True)
         ]
         response = client.get('/api/weather?city=London')
         assert response.status_code == 500

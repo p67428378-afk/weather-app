@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify
 import requests
+from requests import exceptions as requests_exceptions
 import os
 
 app = Flask(__name__)
@@ -109,23 +110,23 @@ def get_weather():
             "conditions": conditions
         })
 
-    except requests.exceptions.HTTPError as http_err:
+    except requests_exceptions.HTTPError as http_err:
         error_details = f"HTTP error occurred: {http_err}"
         if http_err.response is not None:
             error_details += f" - Response: {http_err.response.text}"
         app.logger.error(error_details)
         return jsonify({"error": "Could not retrieve weather data. Please try again later."}), 500
-    except requests.exceptions.ConnectionError as conn_err:
+    except requests_exceptions.ConnectionError as conn_err:
         app.logger.error(f"Connection error occurred: {conn_err}")
         return jsonify({"error": "Network error. Please check your internet connection."}), 503
-    except requests.exceptions.Timeout as timeout_err:
+    except requests_exceptions.Timeout as timeout_err:
         app.logger.error(f"Timeout error occurred: {timeout_err}")
         return jsonify({"error": "Request timed out. Please try again later."}), 504
-    except requests.exceptions.RequestException as req_err:
+    except requests_exceptions.RequestException as req_err:
         app.logger.error(f"An unexpected request error occurred: {req_err}")
         return jsonify({"error": "An unexpected error occurred while fetching weather data."}), 500
     except Exception as e:
-        app.logger.error(f"An unexpected server error occurred: {e}")
+        app.logger.error(f"An unexpected server error occurred: {type(e).__name__}")
         return jsonify({"error": "An internal server error occurred."}), 500
 
 if __name__ == '__main__':

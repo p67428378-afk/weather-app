@@ -110,7 +110,10 @@ def get_weather():
         })
 
     except requests.exceptions.HTTPError as http_err:
-        app.logger.error(f"HTTP error occurred: {http_err} - Response: {http_err.response.text}")
+        error_details = f"HTTP error occurred: {http_err}"
+        if http_err.response is not None:
+            error_details += f" - Response: {http_err.response.text}"
+        app.logger.error(error_details)
         return jsonify({"error": "Could not retrieve weather data. Please try again later."}), 500
     except requests.exceptions.ConnectionError as conn_err:
         app.logger.error(f"Connection error occurred: {conn_err}")
